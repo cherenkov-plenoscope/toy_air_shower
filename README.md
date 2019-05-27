@@ -1,4 +1,4 @@
-# A toy simulation for air-showers induced by gamma-rays
+# Simulate air-showers induced by gamma-rays
 
 Simulate the electro-magnetic particle-cascade and the Cherenkov-emission of an air-shower.
 Based on the Heitler-modell and the Frank-Tamm-formula.
@@ -30,3 +30,9 @@ save_shower_figure(
 ```
 
 ![img](readme/example_air_shower.png)
+Gamma-rays in green, electrons/positrons in blue.
+
+## Internal
+For the Cherenkov-emission we use the Frank-Tamm-fromula.
+![img](readme/frank_tamm.png)
+Energy loss ```dE/dz``` per unit length of an electron/positron converted into Cherenkov-photon-emission when traversing earth's atmosphere.
