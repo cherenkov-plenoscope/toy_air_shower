@@ -18,7 +18,7 @@ Use ```-e``` for editable in order to modify the simulation without reinstalling
 import toy_air_shower as tas
 
 particles, cherenkov_photons = tas.simulate_gamma_ray_air_shower(
-    random_seed=0,
+    random_seed=13,
     primary_energy=1e9*tas.UNIT_CHARGE,
     wavelength_start=250e-9,
     wavelength_end=700e-9)
