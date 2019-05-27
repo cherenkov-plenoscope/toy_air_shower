@@ -28,19 +28,23 @@ PERMABILITY_AIR = 4.*np.pi*1e-7 * 1.00000037# H/m
 # B. D. Cullity and C. D. Graham (2008),
 # Introduction to Magnetic Materials, 2nd edition, 568 pp., p.16
 
-RADIATION_LENGTH_AIR = 36.62 # g/cm^2
+RADIATION_LENGTH_AIR_E = 36.62 # g/cm^2
 # Depth to be traversed before Energy is reduced to 1/e.
 # http://pdg.lbl.gov/2015/AtomicNuclearProperties/HTML/air_dry_1_atm.html
+
+RADIATION_LENGTH_AIR_G = 9/7*RADIATION_LENGTH_AIR_E # g/cm^2
 
 # dE/dx = E*e^{-x/X0}
 # 1/2 E = E*e^{-x/X0}
 # ln(1/2) = -x/X0
 # -ln(1/2)*X0 = x
 
-HALF_DEPTH_AIR = -np.log(1./2.)*RADIATION_LENGTH_AIR # g/cm^2
+HALF_DEPTH_AIR_E = RADIATION_LENGTH_AIR_E/np.log(2.) # g/cm^2
+HALF_DEPTH_AIR_G = RADIATION_LENGTH_AIR_G/np.log(2.) # g/cm^2
 # Depth to be traversed before Energy is reduced to 1/2.
 
-AVG_INTERACTION_RATE_PER_UNIT_DEPTH = 1./HALF_DEPTH_AIR # cm^2/g
+INTERACTION_RATE_PER_UNIT_DEPTH_ELECTRON = 1./HALF_DEPTH_AIR_E # cm^2/g
+INTERACTION_RATE_PER_UNIT_DEPTH_GAMMA = 1./HALF_DEPTH_AIR_G # cm^2/g
 
 DEPTH_SEA_LEVEL_AIR = 1013.25 # g/cm^2
 
@@ -106,7 +110,7 @@ def make_cherenkov_spectrum(wvl_range):
 
 
 def gamma_ray_first_interaction(primary_energy):
-    first_interaction_depth = expovariate(AVG_INTERACTION_RATE_PER_UNIT_DEPTH)
+    first_interaction_depth = expovariate(INTERACTION_RATE_PER_UNIT_DEPTH_GAMMA)
     first_interaction_altitude = depth_to_altitude(first_interaction_depth)
 
     particles = [
@@ -151,6 +155,14 @@ def draw_wavelength(
     return wavelength
 
 
+def heitler_correction_spliting(num_bremsstrahlungen_per_half_depth=5):
+    N = num_bremsstrahlungen_per_half_depth
+    n = (1./2.)**(1./N)*N
+    energy_fraction_electron = n/N
+    energy_fraction_gamma_ray = (1 - n/N)
+    return energy_fraction_electron, energy_fraction_gamma_ray
+
+
 IDX_MOTHER = 0
 IDX_ALTITUDE = 1
 IDX_CHERENKOV_ANGLE = 2
@@ -161,7 +173,8 @@ def simulate_gamma_ray_air_shower(
     random_seed,
     primary_energy,
     wavelength_start,
-    wavelength_end
+    wavelength_end,
+    bremsstrahlung_correction_factor=1
 ):
     np.random.seed(random_seed)
 
@@ -176,18 +189,21 @@ def simulate_gamma_ray_air_shower(
     cherenkov_photons_theta = []
     cherenkov_photons_mother = []
 
+    assert(np.modf(bremsstrahlung_correction_factor)[0] == 0)
+    energy_fraction_electron, energy_fraction_gamma_ray = heitler_correction_spliting(
+        bremsstrahlung_correction_factor)
+
     while True:
         if len(todo) == 0:
             break
 
-        depth_until_next_interaction = expovariate(
-            AVG_INTERACTION_RATE_PER_UNIT_DEPTH)
-        current_depth = altitude_to_depth(particles[todo[0]]['start_altitude'])
-        next_interaction_depth = current_depth + depth_until_next_interaction
-        next_interaction_altitude = depth_to_altitude(next_interaction_depth)
-        assert(next_interaction_altitude < particles[todo[0]]['start_altitude'])
-
         if particles[todo[0]]['type'] == 'gamma':
+            depth_until_next_interaction = expovariate(
+                INTERACTION_RATE_PER_UNIT_DEPTH_GAMMA)
+            current_depth = altitude_to_depth(particles[todo[0]]['start_altitude'])
+            next_interaction_depth = current_depth + depth_until_next_interaction
+            next_interaction_altitude = depth_to_altitude(next_interaction_depth)
+            assert(next_interaction_altitude < particles[todo[0]]['start_altitude'])
 
             if particles[todo[0]]['energy'] < CRITICAL_ENERGY:
                 particles[todo[0]]['end_altitude'] = next_interaction_altitude
@@ -222,6 +238,13 @@ def simulate_gamma_ray_air_shower(
                 del todo[0]
 
         elif particles[todo[0]]['type'] == 'electron':
+            depth_until_next_interaction = (
+                expovariate(INTERACTION_RATE_PER_UNIT_DEPTH_ELECTRON)/
+                bremsstrahlung_correction_factor)
+            current_depth = altitude_to_depth(particles[todo[0]]['start_altitude'])
+            next_interaction_depth = current_depth + depth_until_next_interaction
+            next_interaction_altitude = depth_to_altitude(next_interaction_depth)
+            assert(next_interaction_altitude < particles[todo[0]]['start_altitude'])
 
             # Cherenkov emission
             # ------------------
@@ -254,6 +277,7 @@ def simulate_gamma_ray_air_shower(
                         energy_loss_per_unit_length/energy_of_cherenkov_photon)
                     distance_until_next_emission = expovariate(
                         emmission_rate_per_unit_length)
+
                     assert(distance_until_next_emission >= 0)
 
                     if distance_until_next_emission > 1e2:
@@ -280,13 +304,12 @@ def simulate_gamma_ray_air_shower(
                 del todo[0]
             else:
                 # bremsstrahlung
-                next_gen_energy = .5*particles[todo[0]]["energy"]
                 # create one new electron and one new gamma-ray
                 particles.append(
                     {
                         "type": "electron",
-                        "start_energy": next_gen_energy,
-                        "energy": next_gen_energy,
+                        "start_energy": energy_fraction_electron*particles[todo[0]]["energy"],
+                        "energy": energy_fraction_electron*particles[todo[0]]["energy"],
                         "start_altitude": next_interaction_altitude,
                         "mother": todo[0],
                     }
@@ -295,13 +318,14 @@ def simulate_gamma_ray_air_shower(
                 particles.append(
                     {
                         "type": "gamma",
-                        "start_energy": next_gen_energy,
-                        "energy": next_gen_energy,
+                        "start_energy": energy_fraction_gamma_ray*particles[todo[0]]["energy"],
+                        "energy": energy_fraction_gamma_ray*particles[todo[0]]["energy"],
                         "start_altitude": next_interaction_altitude,
                         "mother": todo[0],
                     }
                 )
                 todo.append(len(particles) - 1)
+
                 # destroy old electron
                 particles[todo[0]]['end_altitude'] = next_interaction_altitude
                 particles[todo[0]]['energy'] = 0.
