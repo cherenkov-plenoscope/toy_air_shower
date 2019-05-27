@@ -1,10 +1,14 @@
 from matplotlib.colors import LogNorm
 from matplotlib.ticker import LogFormatterMathtext
-import toy_air_shower
+import toy_air_shower as tas
+import json
 
 
 def save_shower_figure(particles, cherenkov_photons, path):
-    plt.Figure()
+    dpi = 200
+    fig = plt.figure(figsize=(8, 4.5), dpi=dpi)
+    ax = fig.add_axes((0.07, 0.07, 0.92, 0.92))
+
     start_xs = np.zeros(len(particles))
     end_xs = np.zeros(len(particles))
     childs = np.zeros(len(particles), dtype=np.uint64)
@@ -39,13 +43,13 @@ def save_shower_figure(particles, cherenkov_photons, path):
         end_y = particle['end_altitude']
 
         # trajectories
-        plt.plot(
+        ax.plot(
             np.array([start_x, end_x])*1e-3,
             np.array([start_y, end_y])*1e-3,
             color=color)
         # interaction marker
         if idx != 0:
-            plt.plot(
+            ax.plot(
                 np.array([start_x])*1e-3,
                 np.array([start_y])*1e-3,
                 "ok")
@@ -54,32 +58,32 @@ def save_shower_figure(particles, cherenkov_photons, path):
         center_y = np.mean([start_y, end_y])
 
         if particle['type'] == 'electron':
-            mask = cherenkov_photons[:, IDX_MOTHER] == idx
+            mask = cherenkov_photons[:, tas.IDX_MOTHER] == idx
             num_cherenkov_photons = np.sum(mask)
             text = "{:.0f}MeV, {:d}ch-ph".format(
-                1e-6*particle['start_energy']/UNIT_CHARGE,
+                1e-6*particle['start_energy']/tas.UNIT_CHARGE,
                 num_cherenkov_photons)
         elif particle['type'] == 'gamma':
             text = "{:.0f}MeV".format(
-                1e-6*particle['start_energy']/UNIT_CHARGE)
+                1e-6*particle['start_energy']/tas.UNIT_CHARGE)
 
-        plt.text(
+        ax.text(
             x=center_x*1e-3,
             y=center_y*1e-3,
-            s=text)
+            s=text,
+            fontsize=6)
 
 
-    plt.ylabel("altitude / km")
-    plt.xlabel("transverse / arb. unit")
-    ax = plt.gca()
+    ax.set_ylabel("altitude / km")
+    ax.set_xlabel("transverse / arb. unit")
     ax.yaxis.grid(True)
-    plt.tick_params(
+    ax.tick_params(
         axis='x',          # changes apply to the x-axis
         which='both',      # both major and minor ticks are affected
         bottom=False,      # ticks along the bottom edge are off
         top=False,         # ticks along the top edge are off
         labelbottom=False) # labels along the bottom edge are off
-    plt.savefig(path)
+    fig.savefig(path)
 
 
 def save_figure_frank_tamm(
@@ -92,8 +96,8 @@ def save_figure_frank_tamm(
         np.log10(100e3),
         128)
     energies = np.logspace(
-        np.log10(1e6*toy_air_shower.UNIT_CHARGE),
-        np.log10(1e9*toy_air_shower.UNIT_CHARGE),
+        np.log10(1e6*tas.UNIT_CHARGE),
+        np.log10(1e9*tas.UNIT_CHARGE),
         128)
 
     cherenkov_yield = np.zeros(shape=(altitudes.shape[0], energies.shape[0]))
@@ -101,35 +105,37 @@ def save_figure_frank_tamm(
     for aidx, altitude in enumerate(altitudes):
         for eidx, energy in enumerate(energies):
             current_gamma_factor = energy/(
-                toy_air_shower.ELECTRON_MASS *
-                toy_air_shower.SPEED_OF_LIGHT**2)
+                tas.ELECTRON_MASS *
+                tas.SPEED_OF_LIGHT**2)
             current_beta = np.sqrt(1. - 1./current_gamma_factor**2)
-            current_n = toy_air_shower.refraction_in_air(altitude)
+            current_n = tas.refraction_in_air(altitude)
             if current_beta < 1./current_n:
                 cherenkov_yield[aidx, eidx] = 0.
             else:
-                cherenkov_yield[aidx, eidx] = - toy_air_shower.dE_over_dz(
-                    q=toy_air_shower.UNIT_CHARGE,
+                cherenkov_yield[aidx, eidx] = - tas.dE_over_dz(
+                    q=tas.UNIT_CHARGE,
                     beta=current_beta,
                     n=current_n,
-                    mu=toy_air_shower.PERMABILITY_AIR,
+                    mu=tas.PERMABILITY_AIR,
                     wavelength_start=wavelength_start,
                     wavelength_end=wavelength_end)
 
-    im = plt.pcolormesh(
-        energies/toy_air_shower.UNIT_CHARGE, # GeV
+    dpi = 200
+    fig = plt.figure(figsize=(8, 4.5), dpi=dpi)
+    ax = fig.add_axes((0.1, 0.1, 0.9, 0.85))
+    im = ax.pcolormesh(
+        energies/tas.UNIT_CHARGE, # GeV
         altitudes, # m
-        cherenkov_yield/toy_air_shower.UNIT_CHARGE, # eV/m
+        cherenkov_yield/tas.UNIT_CHARGE, # eV/m
         norm=LogNorm())
-    plt.loglog()
-    plt.xlabel(r"E / eV")
-    plt.ylabel(r"z (above sea level)/ m")
-    plt.title(
-        "Frank-Tamm-formula\n"
-        "Energy loss due to Cherenkov-emission for an electron\n"
-        "wavelength: {:.0f}nm - {:.0f}nm".format(
-            wavelength_start*1e-9,
-            wavelength_end*1e-9))
+    ax.loglog()
+    ax.set_xlabel(r"E / eV")
+    ax.set_ylabel(r"z (above sea level)/ m")
+    ax.set_title(
+        "Wavelength: {:.0f}nm - {:.0f}nm".format(
+            wavelength_start*1e9,
+            wavelength_end*1e9))
+    ax.grid(color='k', linestyle='-', linewidth=0.66, alpha=0.1)
     cbar = plt.colorbar(im,format=LogFormatterMathtext())
     cbar.ax.set_ylabel(r'dE/dz / eV m$^{-1}$')
-    plt.savefig(path)
+    fig.savefig(path)
