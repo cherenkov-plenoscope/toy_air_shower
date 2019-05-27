@@ -18,15 +18,19 @@ PLANCK_ACTION = 6.626e-34 # Js
 
 ELECTRON_MASS = 9.10938356e-31 # kg
 
-CRITICAL_ENERGY = 85e6*UNIT_CHARGE # J
+ELECTRON_REST_ENERGY = ELECTRON_MASS*SPEED_OF_LIGHT**2.
+
+CRITICAL_ENERGY = 86e6*UNIT_CHARGE # J
 # At this energy, ionization takes over Bremsstrahlung
+# http://pdg.lbl.gov/2015/AtomicNuclearProperties/HTML/air_dry_1_atm.html
 
 PERMABILITY_AIR = 4.*np.pi*1e-7 * 1.00000037# H/m
 # B. D. Cullity and C. D. Graham (2008),
 # Introduction to Magnetic Materials, 2nd edition, 568 pp., p.16
 
-RADIATION_LENGTH_AIR = 45 # g/cm^2
+RADIATION_LENGTH_AIR = 36.62 # g/cm^2
 # Depth to be traversed before Energy is reduced to 1/e.
+# http://pdg.lbl.gov/2015/AtomicNuclearProperties/HTML/air_dry_1_atm.html
 
 # dE/dx = E*e^{-x/X0}
 # 1/2 E = E*e^{-x/X0}
@@ -82,6 +86,17 @@ def depth_to_altitude(depth):
 
 def expovariate(rate):
     return -np.log(np.random.uniform())/rate
+
+
+def lorentz_factor(kinetic_energy, rest_energy):
+    return 1. + kinetic_energy/rest_energy
+
+
+def natural_velocity(kinetic_energy, rest_energy):
+    gamma = lorentz_factor(
+        kinetic_energy=kinetic_energy,
+        rest_energy=rest_energy)
+    return np.sqrt(1. - 1./gamma**2)
 
 
 def make_cherenkov_spectrum(wvl_range):
@@ -211,43 +226,48 @@ def simulate_gamma_ray_air_shower(
             # Cherenkov emission
             # ------------------
             current_altitude = particles[todo[0]]['start_altitude']
+            em = False
             while True:
-                current_gamma_factor = particles[todo[0]]['energy']/(
-                    ELECTRON_MASS * SPEED_OF_LIGHT**2)
-                current_beta = np.sqrt(1. - 1./current_gamma_factor**2)
+                current_beta = natural_velocity(
+                    kinetic_energy=particles[todo[0]]['energy'],
+                    rest_energy=ELECTRON_REST_ENERGY)
+
                 current_n = refraction_in_air(current_altitude)
 
-                if current_beta < 1./current_n:
-                    break
+                if current_beta > 1./current_n:
+                    energy_loss_per_unit_length = - dE_over_dz(
+                        q=UNIT_CHARGE,
+                        beta=current_beta,
+                        n=current_n,
+                        mu=PERMABILITY_AIR,
+                        wavelength_start=wavelength_start,
+                        wavelength_end=wavelength_end)
 
-                energy_loss_per_unit_length = - dE_over_dz(
-                    q=UNIT_CHARGE,
-                    beta=current_beta,
-                    n=current_n,
-                    mu=PERMABILITY_AIR,
-                    wavelength_start=wavelength_start,
-                    wavelength_end=wavelength_end)
+                    wavelength = draw_wavelength(
+                        cherenkov_spectrum_cdf=cherenkov_spectrum_cdf,
+                        wavelength_range=wavelength_range)
 
-                wavelength = draw_wavelength(
-                    cherenkov_spectrum_cdf=cherenkov_spectrum_cdf,
-                    wavelength_range=wavelength_range)
+                    energy_of_cherenkov_photon = (
+                        PLANCK_ACTION*SPEED_OF_LIGHT/wavelength)
 
-                energy_of_cherenkov_photon = (
-                    PLANCK_ACTION*SPEED_OF_LIGHT/wavelength)
+                    emmission_rate_per_unit_length = (
+                        energy_loss_per_unit_length/energy_of_cherenkov_photon)
+                    distance_until_next_emission = expovariate(
+                        emmission_rate_per_unit_length)
+                    assert(distance_until_next_emission >= 0)
 
-                emmission_rate_per_unit_length = (
-                    energy_loss_per_unit_length/energy_of_cherenkov_photon)
-                distance_until_next_emission = expovariate(
-                    emmission_rate_per_unit_length)
-                assert(distance_until_next_emission >= 0)
+                    if distance_until_next_emission > 1e2:
+                        distance_until_next_emission = 1e2
 
-                current_altitude -= distance_until_next_emission
-                particles[todo[0]]['energy'] -= energy_of_cherenkov_photon
-                cherenkov_photons_altitude.append(current_altitude)
-                cherenkov_photons_wvl.append(wavelength)
-                cherenkov_photons_theta.append(
-                    np.arccos(1.0/(current_n*current_beta)))
-                cherenkov_photons_mother.append(todo[0])
+                    current_altitude -= distance_until_next_emission
+                    particles[todo[0]]['energy'] -= energy_of_cherenkov_photon
+                    cherenkov_photons_altitude.append(current_altitude)
+                    cherenkov_photons_wvl.append(wavelength)
+                    cherenkov_photons_theta.append(
+                        np.arccos(1.0/(current_n*current_beta)))
+                    cherenkov_photons_mother.append(todo[0])
+                else:
+                    current_altitude -= 1e1
 
                 if current_altitude < next_interaction_altitude:
                     break

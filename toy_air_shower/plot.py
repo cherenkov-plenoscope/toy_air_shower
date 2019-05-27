@@ -96,7 +96,7 @@ def save_figure_frank_tamm(
         np.log10(100e3),
         128)
     energies = np.logspace(
-        np.log10(1e6*tas.UNIT_CHARGE),
+        np.log10(1e7*tas.UNIT_CHARGE),
         np.log10(1e9*tas.UNIT_CHARGE),
         128)
 
@@ -104,11 +104,11 @@ def save_figure_frank_tamm(
 
     for aidx, altitude in enumerate(altitudes):
         for eidx, energy in enumerate(energies):
-            current_gamma_factor = energy/(
-                tas.ELECTRON_MASS *
-                tas.SPEED_OF_LIGHT**2)
-            current_beta = np.sqrt(1. - 1./current_gamma_factor**2)
             current_n = tas.refraction_in_air(altitude)
+            current_beta = tas.natural_velocity(
+                kinetic_energy=energy,
+                rest_energy=tas.ELECTRON_REST_ENERGY)
+
             if current_beta < 1./current_n:
                 cherenkov_yield[aidx, eidx] = 0.
             else:
