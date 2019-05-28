@@ -28,23 +28,24 @@ PERMABILITY_AIR = 4.*np.pi*1e-7 * 1.00000037# H/m
 # B. D. Cullity and C. D. Graham (2008),
 # Introduction to Magnetic Materials, 2nd edition, 568 pp., p.16
 
-RADIATION_LENGTH_AIR_E = 36.62 # g/cm^2
+RADIATION_LENGTH_AIR_ELECTRON = 36.62 # g/cm^2
 # Depth to be traversed before Energy is reduced to 1/e.
 # http://pdg.lbl.gov/2015/AtomicNuclearProperties/HTML/air_dry_1_atm.html
 
-RADIATION_LENGTH_AIR_G = 9/7*RADIATION_LENGTH_AIR_E # g/cm^2
+RADIATION_LENGTH_AIR_GAMMA = 9/7*RADIATION_LENGTH_AIR_ELECTRON # g/cm^2
 
 # dE/dx = E*e^{-x/X0}
 # 1/2 E = E*e^{-x/X0}
 # ln(1/2) = -x/X0
 # -ln(1/2)*X0 = x
 
-HALF_DEPTH_AIR_E = RADIATION_LENGTH_AIR_E/np.log(2.) # g/cm^2
-HALF_DEPTH_AIR_G = RADIATION_LENGTH_AIR_G/np.log(2.) # g/cm^2
+SPLITING_DEPTH_ELECTRON = RADIATION_LENGTH_AIR_ELECTRON*np.log(2.) # g/cm^2
 # Depth to be traversed before Energy is reduced to 1/2.
+PAIR_PROD_DEPTH_GAMMA = 2.*RADIATION_LENGTH_AIR_GAMMA*np.log(2.) # g/cm^2
+# Depth to lose all energy.
 
-INTERACTION_RATE_PER_UNIT_DEPTH_ELECTRON = 1./HALF_DEPTH_AIR_E # cm^2/g
-INTERACTION_RATE_PER_UNIT_DEPTH_GAMMA = 1./HALF_DEPTH_AIR_G # cm^2/g
+BREMSSTRAHLUNGS_RATE_PER_UNIT_DEPTH_ELECTRON = 1./SPLITING_DEPTH_ELECTRON # cm^2/g
+PAIR_PROD_RATE_PER_UNIT_DEPTH_GAMMA = 1./PAIR_PROD_DEPTH_GAMMA # cm^2/g
 
 DEPTH_SEA_LEVEL_AIR = 1013.25 # g/cm^2
 
@@ -110,7 +111,7 @@ def make_cherenkov_spectrum(wvl_range):
 
 
 def gamma_ray_first_interaction(primary_energy):
-    first_interaction_depth = expovariate(INTERACTION_RATE_PER_UNIT_DEPTH_GAMMA)
+    first_interaction_depth = expovariate(PAIR_PROD_RATE_PER_UNIT_DEPTH_GAMMA)
     first_interaction_altitude = depth_to_altitude(first_interaction_depth)
 
     particles = [
@@ -199,7 +200,7 @@ def simulate_gamma_ray_air_shower(
 
         if particles[todo[0]]['type'] == 'gamma':
             depth_until_next_interaction = expovariate(
-                INTERACTION_RATE_PER_UNIT_DEPTH_GAMMA)
+                PAIR_PROD_RATE_PER_UNIT_DEPTH_GAMMA)
             current_depth = altitude_to_depth(particles[todo[0]]['start_altitude'])
             next_interaction_depth = current_depth + depth_until_next_interaction
             next_interaction_altitude = depth_to_altitude(next_interaction_depth)
@@ -239,7 +240,7 @@ def simulate_gamma_ray_air_shower(
 
         elif particles[todo[0]]['type'] == 'electron':
             depth_until_next_interaction = (
-                expovariate(INTERACTION_RATE_PER_UNIT_DEPTH_ELECTRON)/
+                expovariate(BREMSSTRAHLUNGS_RATE_PER_UNIT_DEPTH_ELECTRON)/
                 bremsstrahlung_correction_factor)
             current_depth = altitude_to_depth(particles[todo[0]]['start_altitude'])
             next_interaction_depth = current_depth + depth_until_next_interaction
