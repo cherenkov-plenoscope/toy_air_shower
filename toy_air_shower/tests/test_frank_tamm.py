@@ -15,24 +15,32 @@ def test_frank_tamm():
     wavelengths = np.linspace(400e-9, 700e-9, 1024)
     spectrum = tas.make_cherenkov_spectrum(wavelengths)
     avg_wavelength = np.average(wavelengths, weights=spectrum)
-    avg_photon_energy = (tas.SPEED_OF_LIGHT*tas.PLANCK_ACTION)/avg_wavelength
+    avg_photon_energy = (
+        tas.SPEED_OF_LIGHT * tas.PLANCK_ACTION
+    ) / avg_wavelength
 
-    dNdz_air = -tas.dE_over_dz(
-        q=tas.UNIT_CHARGE,
-        beta=1,
-        n=1.000295,
-        mu=tas.PERMABILITY_AIR,
-        wavelength_start=400e-9,
-        wavelength_end=700e-9
-    )/avg_photon_energy
-    assert(np.abs(dNdz_air - 30) < 5)
+    dNdz_air = (
+        -tas.dE_over_dz(
+            q=tas.UNIT_CHARGE,
+            beta=1,
+            n=1.000295,
+            mu=tas.PERMABILITY_AIR,
+            wavelength_start=400e-9,
+            wavelength_end=700e-9,
+        )
+        / avg_photon_energy
+    )
+    assert np.abs(dNdz_air - 30) < 5
 
-    dNdz_isobutan = -tas.dE_over_dz(
-        q=tas.UNIT_CHARGE,
-        beta=1,
-        n=1.00131,
-        mu=tas.PERMABILITY_AIR,
-        wavelength_start=400e-9,
-        wavelength_end=700e-9
-    )/avg_photon_energy
-    assert(np.abs(dNdz_isobutan - 130) < 10)
+    dNdz_isobutan = (
+        -tas.dE_over_dz(
+            q=tas.UNIT_CHARGE,
+            beta=1,
+            n=1.00131,
+            mu=tas.PERMABILITY_AIR,
+            wavelength_start=400e-9,
+            wavelength_end=700e-9,
+        )
+        / avg_photon_energy
+    )
+    assert np.abs(dNdz_isobutan - 130) < 10
