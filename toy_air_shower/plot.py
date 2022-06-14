@@ -1,20 +1,31 @@
 from matplotlib.colors import LogNorm
 from matplotlib.ticker import LogFormatterMathtext
+import matplotlib.pyplot as plt
 import toy_air_shower as tas
 import json
+import numpy as np
 
 
-def save_shower_figure(particles, cherenkov_photons, path):
-    dpi = 200
-    fig = plt.figure(figsize=(8, 4.5), dpi=dpi)
-    ax = fig.add_axes((0.07, 0.07, 0.92, 0.92))
+PARTICLE_COLORS = {
+    "gamma": "black",
+    "electron": "blue",
+}
 
+
+def ax_add_shower(
+    ax,
+    particles,
+    cherenkov_photons,
+    particle_colors=PARTICLE_COLORS,
+    show_text=True,
+    fontsize=6,
+):
     start_xs = np.zeros(len(particles))
     end_xs = np.zeros(len(particles))
     childs = np.zeros(len(particles), dtype=np.uint64)
 
     for idx, particle in enumerate(particles):
-        color = "blue" if particle['type'] == "electron" else "green"
+        color = particle_colors[particle['type']]
 
         if idx != 0:
             altitude_range = particle['start_altitude'] - particle['end_altitude']
@@ -57,25 +68,33 @@ def save_shower_figure(particles, cherenkov_photons, path):
         center_x = np.mean([start_x, end_x])
         center_y = np.mean([start_y, end_y])
 
-        if particle['type'] == 'electron':
-            mask = cherenkov_photons[:, tas.IDX_MOTHER] == idx
-            num_cherenkov_photons = np.sum(mask)
-            text = "{:.0f}MeV, {:d}ch-ph".format(
-                1e-6*particle['start_energy']/tas.UNIT_CHARGE,
-                num_cherenkov_photons)
-        elif particle['type'] == 'gamma':
-            text = "{:.0f}MeV".format(
-                1e-6*particle['start_energy']/tas.UNIT_CHARGE)
+        if show_text:
+            if particle['type'] == 'electron':
+                mask = cherenkov_photons[:, tas.IDX_MOTHER] == idx
+                num_cherenkov_photons = np.sum(mask)
+                text = "{:.0f}MeV, {:d}ch-ph".format(
+                    1e-6*particle['start_energy']/tas.UNIT_CHARGE,
+                    num_cherenkov_photons)
+            elif particle['type'] == 'gamma':
+                text = "{:.0f}MeV".format(
+                    1e-6*particle['start_energy']/tas.UNIT_CHARGE)
 
-        ax.text(
-            x=center_x*1e-3,
-            y=center_y*1e-3,
-            s=text,
-            fontsize=6)
+            ax.text(
+                x=center_x*1e-3,
+                y=center_y*1e-3,
+                s=text,
+                fontsize=fontsize)
 
+
+def save_shower_figure(particles, cherenkov_photons, path):
+    dpi = 200
+    fig = plt.figure(figsize=(8, 4.5), dpi=dpi)
+    ax = fig.add_axes((0.07, 0.07, 0.92, 0.92))
+
+    ax_add_shower(ax=ax, particles=particles, cherenkov_photons=cherenkov_photons)
 
     ax.set_ylabel("altitude / km")
-    ax.set_xlabel("transverse / arb. unit")
+    ax.set_xlabel("transverse distance / arbitrary")
     ax.yaxis.grid(True)
     ax.tick_params(
         axis='x',          # changes apply to the x-axis
