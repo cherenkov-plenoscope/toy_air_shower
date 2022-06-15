@@ -144,9 +144,10 @@ def save_figure_frank_tamm(
                     wavelength_end=wavelength_end,
                 )
 
+    S = 2
     dpi = 200
-    fig = plt.figure(figsize=(8, 4.5), dpi=dpi)
-    ax = fig.add_axes((0.1, 0.1, 0.9, 0.85))
+    fig = plt.figure(figsize=(8/S, 4/S), dpi=S*dpi)
+    ax = fig.add_axes((0.15, 0.25, 0.8, 0.6))
     im = ax.pcolormesh(
         energies / tas.UNIT_CHARGE,  # GeV
         altitudes,  # m
@@ -155,7 +156,7 @@ def save_figure_frank_tamm(
     )
     ax.loglog()
     ax.set_xlabel(r"E / eV")
-    ax.set_ylabel(r"z (above sea level)/ m")
+    ax.set_ylabel(r"z (altitude)/ m")
     ax.set_title(
         "Wavelength: {:.0f}nm - {:.0f}nm".format(
             wavelength_start * 1e9, wavelength_end * 1e9
