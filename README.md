@@ -21,18 +21,22 @@ particles, cherenkov_photons = tas.simulate_gamma_ray_air_shower(
     random_seed=13,
     primary_energy=1e9*tas.UNIT_CHARGE,
     wavelength_start=250e-9,
-    wavelength_end=700e-9)
+    wavelength_end=700e-9,
+)
 
-save_shower_figure(
+from toy_air_shower import plot
+    
+tas.plot.save_shower_figure(
     particles,
     cherenkov_photons,
-    "readme/example_air_shower.png")
+    "readme/example_air_shower.jpg",
+)
 ```
 
-![img](readme/example_air_shower.png)
+![img](readme/example_air_shower.jpg)
 Gamma-rays in green, electrons/positrons in blue.
 
 ## Internal
 For the Cherenkov-emission we use the Frank-Tamm-fromula.
-![img](readme/frank_tamm.png)
+![img](readme/frank_tamm.jpg)
 Energy loss ```dE/dz``` per unit length of an electron/positron converted into Cherenkov-photon-emission when traversing earth's atmosphere.
