@@ -19,6 +19,8 @@ def ax_add_shower(
     particle_colors=PARTICLE_COLORS,
     show_text=True,
     fontsize=6,
+    interaction_marker="o",
+    interaction_color="black",
 ):
     start_xs = np.zeros(len(particles))
     end_xs = np.zeros(len(particles))
@@ -64,7 +66,10 @@ def ax_add_shower(
         # interaction marker
         if idx != 0:
             ax.plot(
-                np.array([start_x]) * 1e-3, np.array([start_y]) * 1e-3, "ok"
+                np.array([start_x]) * 1e-3,
+                np.array([start_y]) * 1e-3,
+                marker=interaction_marker,
+                color=interaction_color,
             )
 
         center_x = np.mean([start_x, end_x])
@@ -74,7 +79,7 @@ def ax_add_shower(
             if particle["type"] == "electron":
                 mask = cherenkov_photons[:, tas.IDX_MOTHER] == idx
                 num_cherenkov_photons = np.sum(mask)
-                text = "{:.0f}MeV, {:d}ch-ph".format(
+                text = "{:.0f}MeV, {:d}ph".format(
                     1e-6 * particle["start_energy"] / tas.UNIT_CHARGE,
                     num_cherenkov_photons,
                 )
